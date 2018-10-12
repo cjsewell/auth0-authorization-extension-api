@@ -39,6 +39,11 @@ export class Auth0Wrapper {
 		};
 	}
 
+	async authenticateToken(token: string, apiIUrl: string) {
+	  this.apiUrl = apiIUrl
+    this.token = token
+	}
+
 	async authenticate(settings: Auth0WrapperSettings): Promise<void> {
 		this.apiUrl = settings.auth0AuthExtensionUrl;
 		const credentials = {
