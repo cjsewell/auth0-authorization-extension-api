@@ -11,6 +11,7 @@ import {
 	Group,
 	GroupResponse,
 } from './Auth0Types';
+import fetch from "node-fetch";
 
 
 export interface Auth0WrapperSettings {

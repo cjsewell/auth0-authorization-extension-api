@@ -1,6 +1,6 @@
 {
-  "name": "auth0-authorization-extension-wrapper",
-  "version": "0.1.1",
+  "name": "auth0-authorization-extension-api",
+  "version": "1.0.0",
   "description": "Helper lib for Auth0 Authorization Extension with type support, using promises",
   "main": "lib/index.js",
   "keywords": [
@@ -18,10 +18,12 @@
     "definition": "lib/index.d.ts"
   },
   "dependencies": {
+    "node-fetch": "^2.2.0",
     "request": "^2.83.0",
     "request-promise": "^4.2.2"
   },
   "devDependencies": {
+    "@types/node-fetch": "^2.1.2",
     "@types/chai": "^4.0.5",
     "@types/mocha": "^2.2.44",
     "@types/request-promise": "^4.1.39",
@@ -35,16 +37,16 @@
     "clear": "rm -Rf lib && rm -Rf test/*.js"
   },
   "author": {
-    "name": "Gábor IMRE",
-    "email": "imre.gabesz@gmail.com"
+    "name": "Magnus Baudin",
+    "email": "magnus.baudin@gmail.com"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/igabesz/auth0-authorization-extension-wrapper.git"
+    "url": "git+https://github.com/mbaudin/auth0-authorization-extension-api.git"
   },
   "bugs": {
-    "url": "https://github.com/igabesz/auth0-authorization-extension-wrapper/issues"
+    "url": "https://github.com/mbaudin/auth0-authorization-extension-api/issues"
   },
-  "homepage": "https://github.com/igabesz/auth0-authorization-extension-wrapper#readme"
+  "homepage": "https://github.com/mbaudin/auth0-authorization-extension-api#readme"
 }
