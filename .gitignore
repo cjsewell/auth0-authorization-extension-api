@@ -1,10 +1,9 @@
 node_modules/
-lib/
+dist/
 test/*.js
 *.js.map
 *.log
 *.tgz
-*.log
 *.bat
 *.sh
 .idea/

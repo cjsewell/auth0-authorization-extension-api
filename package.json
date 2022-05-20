@@ -1,52 +1,77 @@
 {
-  "name": "auth0-authorization-extension-api",
-  "version": "1.0.0",
-  "description": "Helper lib for Auth0 Authorization Extension with type support, using promises",
-  "main": "lib/index.js",
-  "keywords": [
-    "auth0",
-    "authorization",
-    "authorization-extension",
-    "api",
-    "typescript"
-  ],
-  "directories": {
-    "test": "tests"
-  },
-  "typings": "lib/index.d.ts",
-  "typescript": {
-    "definition": "lib/index.d.ts"
-  },
-  "dependencies": {
-    "node-fetch": "^2.2.0",
-    "request": "^2.83.0",
-    "request-promise": "^4.2.2"
-  },
-  "devDependencies": {
-    "@types/node-fetch": "^2.1.2",
-    "@types/chai": "^4.0.5",
-    "@types/mocha": "^2.2.44",
-    "@types/request-promise": "^4.1.39",
-    "chai": "^4.1.2",
-    "config-decorators": "^0.1.4"
-  },
-  "scripts": {
-    "build": "tsc -p src",
-    "build:test": "tsc -p test",
-    "test": "mocha test --timeout 15000",
-    "clear": "rm -Rf lib && rm -Rf test/*.js"
-  },
-  "author": {
-    "name": "Magnus Baudin",
-    "email": "magnus.baudin@gmail.com"
-  },
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/mbaudin/auth0-authorization-extension-api.git"
-  },
-  "bugs": {
-    "url": "https://github.com/mbaudin/auth0-authorization-extension-api/issues"
-  },
-  "homepage": "https://github.com/mbaudin/auth0-authorization-extension-api#readme"
+    "name": "auth0-authorization-extension-api-fetch",
+    "version": "1.0.0",
+    "description": "Helper lib for Auth0 Authorization Extension with type support, using promises",
+    "module": "dist/esm/index.js",
+    "main": "dist/index.js",
+    "keywords": [
+        "auth0",
+        "authorization",
+        "authorization-extension",
+        "api",
+        "typescript"
+    ],
+    "directories": {
+        "test": "tests"
+    },
+    "files": [
+        "dist"
+    ],
+    "typings": "dist/index.d.ts",
+    "typescript": {
+        "definition": "lib/index.d.ts"
+    },
+    "dependencies": {
+        "node-fetch": "^2.6.7",
+        "verror": "^1.10.1"
+    },
+    "devDependencies": {
+        "@trivago/prettier-plugin-sort-imports": "^3.2.0",
+        "@types/auth0": "^2.34.19",
+        "@types/chai": "^4.3.1",
+        "@types/mocha": "^9.1.1",
+        "@types/node": "^17.0.35",
+        "@types/node-fetch": "^2.6.1",
+        "@types/verror": "^1.10.5",
+        "@typescript-eslint/eslint-plugin": "^5.25.0",
+        "@typescript-eslint/parser": "^5.25.0",
+        "auth0": "^2.40.0",
+        "chai": "^4.3.6",
+        "config-decorators": "^0.2.0",
+        "eslint": "^8.15.0",
+        "eslint-config-prettier": "^8.5.0",
+        "mocha": "^10.0.0",
+        "prettier": "^2.6.2",
+        "ts-node": "^10.7.0",
+        "tslib": "^2.4.0",
+        "typescript": "^4.6.4"
+    },
+    "scripts": {
+        "build": "rm -Rf dist && tsc --declaration true --module CommonJS --outDir ./dist && tsc --declaration false --module ES2020 --outDir ./dist/esm",
+        "lint": "eslint src/",
+        "test": "mocha 'test/**/*.ts' --require ts-node/register --timeout 15000"
+    },
+    "author": {
+        "name": "Gábor IMRE",
+        "email": "imre.gabesz@gmail.com"
+    },
+    "contributors": [
+        {
+            "name": "Magnus Baudin",
+            "email": "magnus.baudin@gmail.com"
+        },
+        {
+            "name": "Corey Sewell",
+            "email": "corey@sewell.net.nz"
+        }
+    ],
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/mbaudin/auth0-authorization-extension-api.git"
+    },
+    "bugs": {
+        "url": "https://github.com/mbaudin/auth0-authorization-extension-api/issues"
+    },
+    "homepage": "https://github.com/mbaudin/auth0-authorization-extension-api#readme"
 }

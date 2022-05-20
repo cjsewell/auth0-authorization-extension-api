@@ -1,220 +1,257 @@
-import * as request from 'request-promise';
-
-
-import {
-	Permission,
-	ShortPermission,
-	PermissionsResponse,
-	Role,
-	ShortRole,
-	RoleResponse,
-	Group,
-	GroupResponse,
-} from './Auth0Types';
-import fetch from "node-fetch";
-
-
-export interface Auth0WrapperSettings {
-	auth0ClientId: string;
-	auth0ClientSecret: string;
-	auth0Url: string;
-	auth0AuthExtensionUrl: string;
-}
+import { TokenResponse, UserData } from 'auth0';
+import fetch, { RequestInit } from 'node-fetch';
+import VError from 'verror';
+import { Config, Group, GroupMembersResponse, GroupResponse, Message, Permission, PermissionsResponse, Role, RoleResponse, ShortPermission, ShortRole } from './models';
 
 export class Auth0Wrapper {
-	private token: string;
-	private apiUrl: string;
+    private readonly config: Config;
+    private token?: TokenResponse & { expires: Date };
+    private readonly apiUrl: string;
 
-	get isAuthenticated() { return !!this.token; }
-	getToken() { return this.token; }
+    constructor(config: Config) {
+        this.config = config;
+        this.apiUrl = this.config.auth0AuthExtensionUrl;
+    }
 
-	private createOptions(body?: any): {
-		headers: { [name: string]: string; };
-		json: boolean;
-		body?: any;
-	} {
-		return {
-			headers: { 'Authorization': 'Bearer ' + this.token },
-			json: true,
-			body,
-		};
-	}
+    get isAuthenticated(): boolean {
+        return Boolean(this.token?.expires && this.token.expires > new Date());
+    }
 
-	async authenticateToken(token: string, apiIUrl: string) {
-	  this.apiUrl = apiIUrl
-    this.token = token
-	}
+    async authenticate(): Promise<void> {
+        const url = new URL('/oauth/token', this.config.auth0Url);
+        const result: TokenResponse = await fetch(url.toString(), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+            },
+            body: new URLSearchParams({
+                grant_type: 'client_credentials',
+                client_id: this.config.auth0ClientId,
+                client_secret: this.config.auth0ClientSecret,
+                audience: 'urn:auth0-authz-api',
+            }).toString(),
+        }).then((r) => r.json());
+        this.token = {
+            ...result,
+            expires: new Date(Date.now() + result.expires_in),
+        };
+        if (!this.isAuthenticated) {
+            throw new Error('API Not authenticated');
+        }
+    }
 
-	async authenticate(settings: Auth0WrapperSettings): Promise<void> {
-		this.apiUrl = settings.auth0AuthExtensionUrl;
-		const credentials = {
-			client_id: settings.auth0ClientId,
-			client_secret: settings.auth0ClientSecret,
-			audience: 'urn:auth0-authz-api',
-			grant_type: 'client_credentials'
-		};
-		let result = await request.post({
-			uri: settings.auth0Url + '/oauth/token',
-			form: credentials,
-			json: true,
-		});
-		this.token = result.access_token;
-	}
+    // PERMISSIONS
+    async getPermissions() {
+        return (await this.get<PermissionsResponse>('api/permissions')).permissions;
+    }
 
-	// PRIVATE HELPERS
+    async getPermission(id: string) {
+        return await this.get<ShortPermission>(`api/permissions/${id}`);
+    }
 
-	private async get<T>(url: string): Promise<T> {
-		let response = await request.get(this.apiUrl + url, this.createOptions());
-		// console.log('RESPONSE', response);
-		return response;
-	}
+    async createPermission(permission: Permission): Promise<Permission> {
+        return this.post<Permission>('api/permissions', {
+            name: permission.name,
+            description: permission.description,
+            applicationType: permission.applicationType,
+            applicationId: permission.applicationId,
+        });
+    }
 
-	private async post<T>(url: string, body: any): Promise<T> {
-		let response = await request.post(this.apiUrl + url, this.createOptions(body));
-		// console.log('RESPONSE', response);
-		return response;
-	}
+    async updatePermission(permission: Permission): Promise<Permission> {
+        return this.put<Permission>(`api/permissions/${permission._id}`, {
+            name: permission.name,
+            description: permission.description,
+            applicationType: permission.applicationType,
+            applicationId: permission.applicationId,
+        });
+    }
 
-	private async put<T>(url: string, body: any): Promise<T> {
-		let response = await request.put(this.apiUrl + url, this.createOptions(body));
-		// console.log('RESPONSE', response);
-		return response;
-	}
+    async deletePermission(permission: Permission): Promise<void>;
 
-	private async patch<T>(url: string, body: any): Promise<T> {
-		let response = await request.patch(this.apiUrl + url, this.createOptions(body));
-		return response;
-	}
+    async deletePermission(permissionId: string): Promise<void>;
 
-	private async delete<T>(url: string, body?: any): Promise<T> {
-		let response = await request.delete(this.apiUrl + url, this.createOptions(body));
-		// console.log('RESPONSE', response);
-		return response;
-	}
+    async deletePermission(permission: Permission | string) {
+        const permissionId = typeof permission === 'string' ? permission : permission._id;
+        return this.delete<void>(`api/permissions/${permissionId}`);
+    }
 
-	// PERMISSIONS
+    // ROLES
+    async getRoles(): Promise<Role[]> {
+        return (await this.get<RoleResponse>('api/roles')).roles;
+    }
 
-	async getPermissions() {
-		return (await this.get<PermissionsResponse>('/permissions')).permissions;
-	}
+    async getRole(id: string): Promise<ShortRole> {
+        return await this.get<Role>(`api/roles/${id}`);
+    }
 
-	async getPermission(id: string) {
-		return (await this.get<ShortPermission>('/permissions/' + id));
-	}
+    async createRole(role: Role): Promise<Role> {
+        return await this.post<Role>('api/roles', {
+            name: role.name,
+            description: role.description,
+            applicationType: role.applicationType,
+            applicationId: role.applicationId,
+            permissions: role.permissions,
+        });
+    }
 
-	async createPermission(permission: Permission): Promise<Permission> {
-		return this.post<Permission>('/permissions', {
-			name: permission.name,
-			description: permission.description,
-			applicationType: permission.applicationType,
-			applicationId: permission.applicationId,
-		});
-	}
+    async updateRole(role: Role): Promise<Role> {
+        return await this.put<Role>(`api/roles/${role._id}`, {
+            name: role.name,
+            description: role.description,
+            applicationType: role.applicationType,
+            applicationId: role.applicationId,
+            permissions: role.permissions,
+        });
+    }
 
-	async updatePermission(permission: Permission): Promise<Permission> {
-		return this.put<Permission>('/permissions/' + permission._id, {
-			name: permission.name,
-			description: permission.description,
-			applicationType: permission.applicationType,
-			applicationId: permission.applicationId,
-		});
-	}
+    async deleteRole(id: string) {
+        return this.delete<void>(`api/roles/${id}`);
+    }
 
-	async deletePermission(permission: Permission): Promise<void>;
-	async deletePermission(permissionId: string): Promise<void>;
-	async deletePermission(permission: Permission | string) {
-		if (typeof permission !== 'string') permission = permission._id;
-		return this.delete<void>('/permissions/' + permission);
-	}
+    async getUserRoles(id: string) {
+        return this.get<ShortRole[]>(`api/users/${id}/roles`);
+    }
 
-	// ROLES
+    async addRoleForUser(id: string, roles: string | string[]) {
+        if (typeof roles === 'string') roles = [roles];
+        return this.patch(`api/users/${id}/roles`, roles);
+    }
 
-	async getRoles(): Promise<Role[]> {
-		return (await this.get<RoleResponse>('/roles')).roles;
-	}
+    async removeRoleFromUser(id: string, roles: string | string[]) {
+        if (typeof roles === 'string') roles = [roles];
+        return this.delete(`api/users/${id}/roles`, roles);
+    }
 
-	async getRole(id: string): Promise<ShortRole> {
-		return (await this.get<Role>('/roles/' + id));
-	}
+    async getUserGroups(id: string) {
+        return this.get<Group[]>(`api/users/${id}/groups`);
+    }
 
-	async createRole(role: Role): Promise<Role> {
-		return (await this.post<Role>('/roles', {
-			name: role.name,
-			description: role.description,
-			applicationType: role.applicationType,
-			applicationId: role.applicationId,
-			permissions: role.permissions,
-		}));
-	}
+    async addGroupForUser(id: string, groups: string | string[]) {
+        if (typeof groups === 'string') groups = [groups];
+        return this.patch(`api/users/${id}/groups`, groups);
+    }
 
-	async updateRole(role: Role): Promise<Role> {
-		return (await this.put<Role>('/roles/' + role._id, {
-			name: role.name,
-			description: role.description,
-			applicationType: role.applicationType,
-			applicationId: role.applicationId,
-			permissions: role.permissions,
-		}));
-	}
+    async removeGroupFromUser(id: string, group: string) {
+        return this.delete(`api/groups/${group}/members`, [id]);
+    }
 
-	async deleteRole(id: string) {
-		return this.delete<void>('/roles/' + id);
-	}
+    // GROUPS
+    async getGroups(): Promise<Group[]> {
+        return (await this.get<GroupResponse>('api/groups')).groups;
+    }
 
-	// USERS
+    async getGroup(id: string): Promise<Group> {
+        return await this.get<Group>(`api/groups/${id}`);
+    }
 
-	async getUserRoles(id: string) {
-		return this.get<ShortRole[]>(`/users/${id}/roles`);
-	}
+    async getGroupMembers(id: string): Promise<UserData[]> {
+        return (await this.get<GroupMembersResponse>(`api/groups/${id}/members`)).users;
+    }
 
-	async addRoleForUser(id: string, roles: string | string[]) {
-		if (typeof roles === 'string') roles = [roles];
-		return this.patch(`/users/${id}/roles`, roles);
-	}
+    async createGroup(group: Group): Promise<Group> {
+        return await this.post<Group>('api/groups', {
+            name: group.name,
+            description: group.description,
+        });
+    }
 
-	async removeRoleFromUser(id: string, roles: string | string[]) {
-		if (typeof roles === 'string') roles = [roles];
-		return this.delete(`/users/${id}/roles`, roles);
-	}
+    async updateGroup(group: Group): Promise<Group> {
+        return await this.put<Group>(`api/groups/${group._id}`, {
+            name: group.name,
+            description: group.description,
+        });
+    }
 
-	async getUserGroups(id: string) {
-		return this.get<Group[]>(`/users/${id}/groups`);
-	}
+    async deleteGroup(id: string) {
+        return this.delete<void>(`api/groups/${id}`);
+    }
 
-	async addGroupForUser(id: string, groups: string | string[]) {
-		if (typeof groups === 'string') groups = [groups];
-		return this.patch(`/users/${id}/groups`, groups);
-	}
+    private async fetch<T>(path: string, init?: RequestInit): Promise<T> {
+        if (!this.isAuthenticated) {
+            await this.authenticate();
+        }
+        const result = {
+            ...init,
+            headers: {
+                ...init?.headers,
+                Authorization: `Bearer ${this.token?.access_token}`,
+            },
+        };
 
-	async removeGroupFromUser(id: string, group: string) {
-		return this.delete(`/groups/${group}/members`, [id]);
-	}
+        const url = new URL(path, this.apiUrl);
+        return fetch(url.toString(), result)
+            .then(async (r) => {
+                if (r.status !== 200) {
+                    const error = (await r.json()) as Message;
+                    throw new VError(
+                        {
+                            name: 'auth0-authorisation-api-error',
+                            info: {
+                                request: {
+                                    url: r.url,
+                                    init,
+                                },
+                                response: r,
+                            },
+                        },
+                        `Error [${error.error}]:${error.message ? ` ${error.message}` : ''} while calling ${r.url}`,
+                    );
+                }
+                return r;
+            })
+            .then((r) => r.json() as Promise<T>)
+            .catch((e) => {
+                throw new VError(
+                    {
+                        name: 'auth0-authorisation-api-error',
+                        cause: e,
+                        info: {
+                            request: {
+                                url,
+                                init,
+                            },
+                        },
+                    },
+                    `Unexpected error with fetching ${url}`,
+                );
+            });
+    }
 
-	// GROUPS
+    // PRIVATE HELPERS
+    private async get<T>(url: string): Promise<T> {
+        return this.fetch(url, { method: 'GET' });
+    }
 
-	async getGroups(): Promise<Group[]> {
-		return (await this.get<GroupResponse>('/groups')).groups;
-	}
+    private async post<T>(url: string, body?: unknown): Promise<T> {
+        return this.fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            ...(body ? { body: JSON.stringify(body) } : null),
+        });
+    }
 
-	async getGroup(id: string): Promise<Group> {
-		return (await this.get<Group>('/groups/' + id));
-	}
+    private async put<T>(url: string, body?: unknown): Promise<T> {
+        return this.fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            ...(body ? { body: JSON.stringify(body) } : null),
+        });
+    }
 
-	async createGroup(group: Group): Promise<Group> {
-		return (await this.post<Group>('/groups', {
-			name: group.name,
-			description: group.description,
-		}));
-	}
+    private async patch<T>(url: string, body?: unknown): Promise<T> {
+        return this.fetch(url, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            ...(body ? { body: JSON.stringify(body) } : null),
+        });
+    }
 
-	async updateGroup(group: Group): Promise<Group> {
-		return (await this.put<Group>('/groups/' + group._id, {
-			name: group.name,
-			description: group.description,
-		}));
-	}
-
-	async deleteGroup(id: string) {
-		return this.delete<void>('/groups/' + id);
-	}
+    private async delete<T>(url: string, body?: unknown): Promise<T> {
+        return this.fetch(url, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            ...(body ? { body: JSON.stringify(body) } : null),
+        });
+    }
 }
